@@ -28,7 +28,6 @@ if len(articles) == 0:
 texts = [article.text for article in articles]
 labels = [article.label for article in articles]
 
-# Rest of your code remains the same...
 # 3. Preprocess text
 preprocessor = TextPreprocessor()
 cleaned_texts = [preprocessor.clean_text(text) for text in texts]
