@@ -32,7 +32,15 @@ Expand dataset for multilingual news detection.
 Deploy the model on cloud for public use.
 
 # Output Screenshots
+### Confusion Matrix
+![Confusion Matrix](images/Confusion_matrix.png)
 
+### Test
+![Test](images/Test.png)
+
+### CLI
+![CLI](images/CLI.png)
+![CLI](images/CLI2.png)
 # Licence
 This project is licensed under the MIT License.
 
