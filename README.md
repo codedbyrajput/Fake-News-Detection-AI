@@ -31,6 +31,8 @@ Build a web app with Flask/Django for UI-based prediction.
 Expand dataset for multilingual news detection.  
 Deploy the model on cloud for public use.
 
+# Output Screenshots
+
 # Licence
 This project is licensed under the MIT License.
 
