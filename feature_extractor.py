@@ -1,33 +1,63 @@
 """
-Documentation:
-In this class I will be working with scikit-learn library. 
-After processing the text in textProcessing class, we convert the cleaned text to numbers so that ML model can understand it.
-We will find the important words in the text and assign the weightage via TF-IDF (Term Frequency x Inverse Document Frequency)
+feature_extractor.py
+
+Turns cleaned text into numeric features using TF-IDF.
+
+Notes:
+    - Call `fit_transform()` on training data first.
+    - Then call `transform()` on validation/test/user input using the same vocabulary.
 """
 
+from __future__ import annotations
+
+from typing import List, Sequence
+
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+
 class FeatureExtractor:
-    def __init__(self):
-        self.vectorizer = TfidfVectorizer(max_features = 10000)# save memory and model performance by putting size constraint
+    """Wrapper around scikit-learn TF-IDF vectorizer with a stable vocabulary."""
+
+    def __init__(self, max_features: int = 10_000):
+        # `max_features` limits vocabulary size to reduce memory usage.
+        self.vectorizer = TfidfVectorizer(max_features=10000, ngram_range=(1, 2))
         self.is_fit = False
 
-    
-    def fit_transform(self, cleaned_documents):
-        "Learn vocabulary and return TF-IDF matrix for training set"
-        x = self.vectorizer.fit_transform(cleaned_documents)# here .fit filter out the top 10000 unique words and tansform assign them tf idf values using the formula with the help of data collected by .fit
+    def fit_transform(self, cleaned_documents: Sequence[str]):
+        """
+        Learns vocabulary from training data and returns TF-IDF features.
+
+        Args:
+            cleaned_documents: List/sequence of cleaned documents (strings).
+
+        Returns:
+            TF-IDF feature matrix for the training set.
+        """
+        X = self.vectorizer.fit_transform(cleaned_documents)
         self.is_fit = True
-        return x
-    
+        return X
 
-    "This method is for test data as we dont want to relearn the unique words again. (.fit)"
-    def transform(self, cleaned_documents):
-        "Transform new cleaned documents into TF-IDF using learned vocab"
+    def transform(self, cleaned_documents: Sequence[str]):
+        """
+        Converts new documents into TF-IDF features using the learned vocabulary.
 
+        Args:
+            cleaned_documents: List/sequence of cleaned documents (strings).
+
+        Returns:
+            TF-IDF feature matrix for the provided documents.
+        """
         if not self.is_fit:
-            raise ValueError("Need to use fit_tranform() method to get a matrix.")
+            raise ValueError("Vectorizer not fitted. Call fit_transform() first.")
         return self.vectorizer.transform(cleaned_documents)
-    
-    def get_feature_names(self):
+
+    def get_feature_names(self) -> List[str]:
+        """
+        Returns the learned vocabulary feature names.
+
+        Raises:
+            ValueError: If the vectorizer has not been fitted yet.
+        """
         if not self.is_fit:
-            raise ValueError("vectorizer not fitted yet")
-        return self.vectorizer.get_feature_names_out()
+            raise ValueError("Vectorizer not fitted yet.")
+        return list(self.vectorizer.get_feature_names_out())

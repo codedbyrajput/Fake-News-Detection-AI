@@ -1,79 +1,110 @@
 """
-This class will provide utilities to evaluate the performance of the classifier. After training a model, we need to see how well it performs on unseen data.
-The metrics I will cover will be Accuracy, Precision, Recall, F1 score and confusion matrix.
-Methods in this class will be static so that there is no need to create an object.
+evaluator.py
 
-Accuracy: proportion of articles correctly classified
-Precision: how many articles predicted fake were actually fake
-Recall: Of all the fake news articles, how many did the model actually catch.
-F1 Score: mean of precision and recall.
-Confusion Matrix: 2x2 table showing counts of [TRUE REAL, FALSE FAKE] vs [FALSE REAL, TRUE FAKE] predictions . Rows: Actual class (Real,Fake) - Columns: Predicted class(Real,Fake). It shows how many real news were correctly and incorrectly classified, and same for fake news
+Evaluation utilities for binary fake-news classification.
+
+Label convention:
+    0 -> FAKE (positive class for precision/recall)
+    1 -> REAL
 """
-from sklearn.metrics import accuracy_score, precision_score, recall_score,f1_score, confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
+
+from __future__ import annotations
+
+from typing import Dict, List, Sequence, Union
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
+
+Label = Union[int, str]
 
 
 class Evaluator:
-    
+    """Static helpers for computing metrics and visualizing results."""
 
-    # This method will evaluate metrics discussed in the documentation above
     @staticmethod
-    def evaluate(y_true, y_pred):
-        if len(y_true) != len(y_pred):
+    def evaluate(y_true: Sequence[Label], y_pred: Sequence[Label]) -> Dict[str, float]:
+        """
+        Computes accuracy, precision, recall, and F1 score.
+
+        Notes:
+            - Precision/Recall/F1 treat FAKE (0) as the positive class.
+            - Accepts labels as int (0/1) or str ("FAKE"/"REAL").
+        """
+        y_true_int = Evaluator._to_int_labels(y_true)
+        y_pred_int = Evaluator._to_int_labels(y_pred)
+
+        if len(y_true_int) != len(y_pred_int):
             raise ValueError("Mismatch in number of true and predicted labels")
-        
-        # Convert string labels to numeric if needed
-        if isinstance(y_true[0], str):
-            label_map = {'FAKE': 0, 'REAL': 1}
-            y_true = [label_map[label] for label in y_true]
-            y_pred = [label_map[label] for label in y_pred]
-        
-        metrics = {}
-        metrics['accuracy'] = accuracy_score(y_true, y_pred)
-        metrics['precision'] = precision_score(y_true, y_pred, pos_label=0, zero_division=0) #pos_label is 0 as we are interested in fake news which is 0
-        metrics['recall'] = recall_score(y_true, y_pred, pos_label=0, zero_division=0)# zero_Division handle cases where the formula divides by 0
-        metrics['f1_score'] = f1_score(y_true, y_pred, pos_label=0, zero_division=0)
 
-        return metrics
-    
-    
+        return {
+            "accuracy": accuracy_score(y_true_int, y_pred_int),
+            "precision": precision_score(y_true_int, y_pred_int, pos_label=0, zero_division=0),
+            "recall": recall_score(y_true_int, y_pred_int, pos_label=0, zero_division=0),
+            "f1_score": f1_score(y_true_int, y_pred_int, pos_label=0, zero_division=0),
+        }
 
-
-
-
-    #This method will give a confusion matrix values as a 2D array in the format: [[TN, FP], [FN, TP]]
     @staticmethod
-    def confusion_matrix_values(y_true, y_pred):
-        if len(y_true) != len(y_pred):
+    def confusion_matrix_values(y_true: Sequence[Label], y_pred: Sequence[Label]):
+        """
+        Returns confusion matrix in the order:
+            [[TN, FP],
+             [FN, TP]]
+        where the positive class is FAKE (0).
+        """
+        y_true_int = Evaluator._to_int_labels(y_true)
+        y_pred_int = Evaluator._to_int_labels(y_pred)
+
+        if len(y_true_int) != len(y_pred_int):
             raise ValueError("Mismatch in number of true and predicted labels")
-        
-        # Convert string labels to numeric if needed
-        if isinstance(y_true[0], str):
-            label_map = {'FAKE': 0, 'REAL': 1}
-            y_true = [label_map[label] for label in y_true]
-            y_pred = [label_map[label] for label in y_pred]
-        
-        cm = confusion_matrix(y_true, y_pred, labels = [0,1])
-        return cm
 
-    #This method will use seaborn heatmap to visually show the confusion matrix
+        return confusion_matrix(y_true_int, y_pred_int, labels=[0, 1])
 
     @staticmethod
-    def plot_confusion_matrix(y_true, y_pred):
-        # Convert string labels to numeric if needed
-        if isinstance(y_true[0], str):
-            label_map = {'FAKE': 0, 'REAL': 1}
-            y_true = [label_map[label] for label in y_true]
-            y_pred = [label_map[label] for label in y_pred]
-        
+    def plot_confusion_matrix(y_true: Sequence[Label], y_pred: Sequence[Label]) -> None:
+        """Displays a confusion matrix heatmap."""
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
         cm = Evaluator.confusion_matrix_values(y_true, y_pred)
 
-        plt.figure(figsize= (5, 4))
-        sns.heatmap(cm, annot = True, fmt = 'd', cmap = 'Blues', xticklabels=['Pred: Fake', 'Pred: Real'], yticklabels=['Actual: Fake', 'Actual: Real'])
-
+        plt.figure(figsize=(5, 4))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=["Pred: FAKE", "Pred: REAL"],
+            yticklabels=["Actual: FAKE", "Actual: REAL"],
+        )
         plt.title("Confusion Matrix")
         plt.xlabel("Predicted Class")
         plt.ylabel("Actual Class")
         plt.tight_layout()
         plt.show()
+
+    @staticmethod
+    def _to_int_labels(labels: Sequence[Label]) -> List[int]:
+        """
+        Converts labels to int format.
+
+        Accepts:
+            - 0/1
+            - "FAKE"/"REAL" (any case, with whitespace)
+        """
+        if len(labels) == 0:
+            return []
+
+        out: List[int] = []
+        for x in labels:
+            if isinstance(x, int):
+                out.append(x)
+                continue
+
+            s = str(x).strip().upper()
+            if s in ("FAKE", "0"):
+                out.append(0)
+            elif s in ("REAL", "1"):
+                out.append(1)
+            else:
+                raise ValueError(f"Unknown label value: {x}")
+        return out

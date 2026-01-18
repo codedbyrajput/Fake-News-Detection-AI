@@ -1,56 +1,66 @@
 """
-This class will handle the text cleaning and pre processing tasks to transform raw article text into cleaner form
+text_preprocessing.py
 
-Things to focus:
-1. Remove Punctuation, conevrt to lowercase
-2. Tokenization
-3. Remove Stopwords like and, the, is
-4. Lemmatization or Stemming : to reduce work to its base form like balanced to balance (will keep it optional as might add complexity to the project)
-5. Extra Whitespace removal after all the work done 
+Text cleaning utilities used before feature extraction.
+
+Pipeline:
+    1) Lowercase
+    2) Remove non-alphanumeric characters (keep spaces)
+    3) Tokenize (split on whitespace)
+    4) Remove stopwords
+    5) Stemming (can be done)
 """
+
+from __future__ import annotations
+
 import re
-from news_article import NewsArticle
-import pandas as pd
-import nltk 
+from typing import List
+
+import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
+
+
 class TextPreprocessor:
+    """Cleans raw input text into a normalized string for TF-IDF."""
 
-    def __init__(self):
-        self.stopwords = set(nltk.corpus.stopwords.words('english'))
-        self.stemmer = PorterStemmer()
+    def __init__(self, use_stemming: bool = False):
+        self.use_stemming = use_stemming
+        self.stemmer = PorterStemmer() if use_stemming else None
 
+        # Ensure NLTK resources exist (keeps runtime errors away).
+        try:
+            _ = stopwords.words("english")
+        except LookupError:
+            nltk.download("stopwords", quiet=True)
 
-    # cleaning the text by removing any unwanted punctuation marks or symbols
+        self.stopwords = set(stopwords.words("english"))
 
-    def clean_symbols(self, text):
-        text = str(text) # esuring that the text is string 
-        modifiedText = re.sub(r'[^a-zA-Z0-9\s]', '' , text)
-        return modifiedText
+    def clean_text(self, text: str) -> str:
+        """
+        Converts raw text into a cleaned string.
 
-    def to_lower(self, text):
-        return text.lower()
+        Args:
+            text: Raw input string.
 
-    def to_tokens(self, text):
-        finalTokens = []
-        newText = self.clean_symbols(text)
-        textList = newText.split() # converted into a list of string or has been converted to tokens 
-        for index in range(len(textList)):
-            if(textList[index] not in self.stopwords):
-                finalTokens.append(textList[index])
-        return finalTokens
+        Returns:
+            Cleaned string suitable for TF-IDF.
+        """
+        if text is None:
+            return ""
 
-    def stemming(self, word):
-        return self.stemmer.stem(word)
-    
-    def clean_text(self, text):
-        text = self.to_lower(text)
-        tokens = self.to_tokens(text)
-        stemmed_tokens = [self.stemming(token) for token in tokens]
-        return " ".join(stemmed_tokens).strip()
+        s = str(text).lower()
+        s = re.sub(r"[^a-z0-9\s]", " ", s)   # replace punctuation with space
+        s = re.sub(r"\s+", " ", s).strip()  # collapse multiple spaces
 
+        tokens = self._tokenize(s)
+        tokens = [t for t in tokens if t not in self.stopwords]
 
-    
+        if self.use_stemming:
+            tokens = [self.stemmer.stem(t) for t in tokens]
 
+        return " ".join(tokens)
 
-
+    def _tokenize(self, text: str) -> List[str]:
+        """Splits text into tokens using whitespace."""
+        return text.split()

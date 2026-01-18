@@ -1,54 +1,83 @@
 """
-In this class I will be using logistic regression for classification of fake and real news using the scikit-learn. If something goes wrong we can use custom ModelTrainingException. 
+fake_news_classifier.py
+
+Train and run a binary classifier for fake-news detection.
+
+Label convention used throughout the project:
+    0 -> FAKE
+    1 -> REAL
 """
+
+from __future__ import annotations
 
 from sklearn.linear_model import LogisticRegression
 from myExceptions import ModelTrainingException
 
-class FakeNewsClassifier:
 
-    #constructor
+class FakeNewsClassifier:
+    """Thin wrapper around scikit-learn LogisticRegression for this project."""
+
     def __init__(self):
-        self.model = LogisticRegression(max_iter = 1000, random_state = 10)#random_state acts like a seed
+        # `max_iter` prevents early stopping warnings on larger vocabularies.
+        self.model = LogisticRegression(max_iter=1000, random_state=10, class_weight="balanced")
         self.isTrained = False
 
-    # The method parameters: X - TF-IDF matrix that we generated in feature extractor class and y is the label of true or false for the news data
-    def train(self, X, y):
+    def train(self, X, y) -> None:
+        """
+        Fits the model on TF-IDF features.
+
+        Args:
+            X: Feature matrix (e.g., TF-IDF sparse matrix).
+            y: Labels (0 for FAKE, 1 for REAL).
+        """
         if X is None or y is None or len(y) == 0:
-            raise ModelTrainingException("Training data incomplete")
-        
+            raise ModelTrainingException("Training data is incomplete.")
+
         try:
-            self.model.fit(X , y)
+            self.model.fit(X, y)
+            self.isTrained = True
         except Exception as e:
             raise ModelTrainingException(f"Training failed: {e}")
-        self.isTrained = True
 
-# X is the TF-IDF matrix of new articles. This method is used to prodict labels as fake or real by using the trained model. This will return an array of 0 and 1.
     def predict(self, X):
-        if not self.isTrained:
-            raise ModelTrainingException()
-        return self.model.predict(X)
-    
-    # This works same as predict but returns the probabilities instead of labels. This will return probabilities of the fake news 
-    def predict_proba(self, X):
+        """
+        Predicts labels for feature matrix X.
+
+        Returns:
+            Array-like of predicted labels (0/1).
+        """
         if not self.isTrained:
             raise ModelTrainingException("Model not trained yet.")
+        return self.model.predict(X)
+
+    def predict_proba_fake(self, X):
+        """
+        Predicts P(FAKE) for each row of X.
+
+        Returns:
+            A 1D array of probabilities in [0, 1], one per input row.
+        """
+        if not self.isTrained:
+            raise ModelTrainingException("Model not trained yet.")
+
         proba = self.model.predict_proba(X)
-        # Make sure we return P(FAKE). FAKE is label 0.
-        idx_fake = list(self.model.classes_).index(0)
+        classes = list(self.model.classes_)
+
+        # Ensure the model was trained with the expected label scheme.
+        if 0 not in classes:
+            raise ModelTrainingException(f"Expected class 0 for FAKE, got classes {classes}")
+
+        idx_fake = classes.index(0)
         return proba[:, idx_fake]
 
-
-
-    # I am writing this method to save my trained model otherwise i need to train it everytime i run the code
-
-    def save_model(self, path):
+    def save_model(self, path: str) -> None:
+        """Saves the underlying scikit-learn model to disk."""
         from joblib import dump
         dump(self.model, path)
 
-    # This saves the whole class as a final trained model 
     @classmethod
-    def load_model(cls, path):
+    def load_model(cls, path: str) -> "FakeNewsClassifier":
+        """Loads a saved scikit-learn model from disk."""
         from joblib import load
         clf = cls()
         clf.model = load(path)
